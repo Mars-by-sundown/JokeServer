@@ -10,10 +10,9 @@
             "name": "JokeClient",
             "request": "launch",
             "mainClass": "JokeClient",
-            "projectName": "JokeServer_4256b793",
             "console": "integratedTerminal",
             "args": "",
-            "cwd": "${workspaceFolder}/src"
+            "cwd": "${workspaceFolder}"
             
             
         },
@@ -22,10 +21,9 @@
             "name": "JokeServer",
             "request": "launch",
             "mainClass": "JokeServer",
-            "projectName": "JokeServer_4256b793",
             "console": "integratedTerminal",
             "args": "",
-            "cwd": "${workspaceFolder}/src"
+            "cwd": "${workspaceFolder}"
         }
     ],
     "compounds": [
