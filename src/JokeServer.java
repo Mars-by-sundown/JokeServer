@@ -4,18 +4,18 @@
  import java.util.ArrayList;
 
 //test
-class ColorClient {
+class JokeClient {
 
     private static int clientColorCount = 0;
     //MODIFICATION: will track all colors sent and received by client
     //  uses an ArrayList to hold Arrays of strings, a new Array will be added to the ledger after each transaction
     private static ArrayList<String[]> colorLedger = new ArrayList<String[]>();
     public static void main(String argv[]) {
-        ColorClient cc = new ColorClient(argv);
+        JokeClient cc = new JokeClient(argv);
         cc.run(argv);
     }
 
-    public ColorClient(String argv[]) {
+    public JokeClient(String argv[]) {
         System.out.println("\nThis is the Constructor\n");
     }
 
@@ -47,7 +47,7 @@ class ColorClient {
                 getColor(userName, colorFromClient, serverName);
             }
         }while (colorFromClient.indexOf("quit") < 0);
-        consoleIn.close(); //Added this as it was not closed in the original ColorClient code
+        consoleIn.close(); //Added this as it was not closed in the original JokeClient code
         System.out.println("Cancelled by user request.");
         System.out.println(userName + ", You completed " + clientColorCount + " color transactions");
 

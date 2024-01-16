@@ -1,0 +1,142 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252"> <title> Elliott -- Joke State &lt;/center&gt; </title>
+</head>
+<body cz-shortcut-listen="true">
+<br> <br> 
+
+<font face="Comic Sans MS" size="1"><p>
+2.1
+Updates: 
+</p><ul>
+<li> none
+</li></ul> 
+
+<font face="Cambria" size="3">
+
+<h2>  <center> Joke Server State Concepts </center> </h2>
+
+
+<h3> Three simple state maintenance schemes: </h3>
+
+IMPLEMENTATION ONE:<p>
+
+</p><ol> 
+<li> When the client starts running, it initializes by producing a UUID
+  (there are Java libraires for this, but you can use a <a href="https://condor.depaul.edu/~elliott/435/hw/programs/Joke/FakeUUID.java"> Good enough UUID
+  </a>), which is stored in a local variable. <p>
+
+</p></li><li> This UUID is bound to the conversation state for this client,
+and can always be used to retrieve current state of the conversation from some permanent store
+on the server. <p>
+
+</p></li><li> A request protocol is used such that every time a message is
+passed to the server, the UUID is sent with it. <p>
+
+</p></li><li> The server maintains the entire state for the client/server
+interaction and stores it in memory.<p>
+
+</p></li><li> Whenver the client connects it ALWAYS sends the UUID, and the server
+uses the UUID to retrieve the state. If the server has no state for the
+UUID, it initializes one to the start state.<p>
+
+</p></li><li> That's it: generate a UUID yourself on the client, store it in a
+variable, send it the server each time you connect.<p>
+</p></li></ol>
+<p>
+
+IMPLEMENTATION TWO: An alternative, but equally simple, implementation, is
+to generate the ID at the server the first time the client connects and send
+it back to the client. Store it on the client and proceed as above. In this
+case a simple counter will do (an ID). A UUID is not needed. Each time
+there is a new client, the counter is incremented. Thus the first client
+would be identified as "1," the second as "2," the third as "3," and so
+forth.  This will not work with multiple servers, because the IDs would no
+longer be unique. </p><p>
+
+IMPLEMENTATION THREE: Another alternative, but equally simple implementation
+is to skip the UUID altogether, and send the entire state back to client,
+saving nothing at the server. In this case you would be sending back two
+sets of random orderings, one each for the jokes and the proverbs, and a
+postion in each ordering representing which jokes/proverbs have
+already been sent. It is not necessary to send the actual jokes or proverbs
+as part of the state. (In fact, see below where the entire state is kept in
+eight bits, plus the length of the user's name.) When the client
+re-connects, it sends the whole state. The server looks to see which joke or
+proverb has NOT been sent, retrieves the data for that joke or proverb,
+updates the state, and sends the joke or proverb and the updated state back
+to the user. Then the server breaks the connection, and discards ALL
+information about the conversation.</p><p>
+
+
+
+
+</p><h3> Storing the entire state in 8 bits, plus the name. </h3> 
+
+Okay—let's think this through. With four items there are 24 (4
+factorial) orderings. (That is, four ways to pick the first joke, times
+three ways to pick the second joke, times two the third, times one the
+fourth). 2 to the 5th power is 32, so five bits is enough to allow us to
+identify the 24 joke orderings, and five bits the 24 proverb
+orderings. (That is, we have labeled each ordering with a number, so we have
+to keep a table associating each number with an ordering of the jokes, and
+the proverbs—but we do not have to send the table, or the table row
+with the ordering in it as part of the state, we can just send the number.)
+Then we need three bits to count from zero to four to know how many jokes in
+the set have been sent, and three bits for the proverbs. That makes 16 bits
+to store the entire state.<p>
+
+Of course if we were clever we could get by with eight bits, where
+for each set of four a "1" meant that joke/proverb had been sent, and a "0"
+meant it had not</p><p>
+
+Now, it will take some processing to match the jokes, and the orderings,
+with the bits, and also to re-generate a random order each time we have
+completed a cycle of jokes, but in any case the <i> entire </i> state takes
+significantly fewer bits than does a reliable UUID.</p><p>
+
+The important concept to remember is <i> the state is not the data. </i> If
+we replace our four jokes with four database entries with 3 terabytes of data each,
+our state still only takes eight bits.</p><p>
+
+Remember that the <i> name </i> of the user entered must also be stored as part of the state.</p><p>
+
+</p><h3> Other considerations </h3>
+
+For this kind of client-server system, where do you want the processing to
+take place? Where do you want to store the data? Each of these will
+determine the best design for saving the state. <p>
+
+</p><ul> 
+
+<li> How big is the data? Do you want to maintain one copy of it on the
+server, or one copy on each of the clients?<p>
+
+</p></li><li> How much data are you shipping over the network?<p>
+
+</p></li><li> How expensive is the processing of the data? Whose CPU do you want
+performing those computations?<p>
+
+</p></li><li> How often do the clients connect?<p>
+
+</p></li><li> Who is legally reponsible for making sure the data is backup up?<p>
+
+</p></li><li> Who is legally reponsible for making sure the data is not exposed? <p>
+
+</p></li><li> How do you handle the problem of a server being clogged with data for a
+client that is never going to connect again?<p>
+
+</p></li></ul>
+
+If the server is maintaining the state, and a client does not reconnect,
+what does it mean? Is the server obligated to save the state on behalf of
+the client for a theoretical eternity? Do you need a graceful way to tell
+the server that a client is finished processing and the state can be
+released? If so, how is a client failing different from a client that is
+simply in a long dormant period? What happens when you update the server to
+a new version? How do you guarantee that all the clients will be updated as
+well? What happens when a client is trying to connect and does not get a
+response? Has the server failed, or is the server possibly just very
+busy?<p>
+
+ 
+</p></font></font></body></html>

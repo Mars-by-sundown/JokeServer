@@ -1,0 +1,90 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252"> <title> CSC435 -- Elliott &lt;/center&gt; </title>
+</head>
+<body cz-shortcut-listen="true">
+
+<font face="Comic Sans MS" size="1">
+
+1.1 Updates:
+<ul>
+<li> none
+</li></ul>
+
+<font face="Cambria" size="3">
+
+<h2>
+<center>  ColorServer JokeServer Rough Pseudo Code </center>
+</h2> 
+
+<h3> ColorServer Logic: </h3>
+
+<pre>
+Server Main loop
+
+ Create a server socket listening at port X
+
+ Loop while loopvar is true
+    Block while waiting for a connection to X
+    Spawn a new worker thread and pass it the connection.
+
+ Exit
+
+
+ColorWorker thread
+
+  Process the data coming over the connection.
+  Optional: If the data is shutdown, then change loopvar to false.
+  Close the connection
+  Terminate the thread.
+
+--------------------------------------------
+</pre>
+
+<h3> JokeServer Logic: </h3>
+
+Of course there are <i> many </i> ways that you could achieve the same
+thing. This is just an example, food for thought.
+
+<pre> 
+Joke Server Main loop
+
+ Create a Mode thread and send it off,
+   asynchronously, to get MODE instructions.
+
+ Create a server socket listening at port X
+
+ Loop while loopvar is true
+    Block while waiting for a connection to X
+    Spawn a new worker thread and pass it the connection.
+
+ Exit
+
+
+Mode Server Main Loop
+
+ Create a server socket listening at port M
+
+ Loop while Server still running.
+   Block while waiting for a connection to M
+   Spawn a new ModeWorker thread and pass it the connection.
+  
+
+ModeWorker thread
+
+  Process the data coming over the connection.
+  
+  If the data is mode change, then change the MODE (e.g., from joke mode to proverb mode)
+  Optional: If the data is shutdown then change the loopvar for main to false
+  Close the connection
+  Terminate the thread.
+
+
+JokeWorker thread
+
+  Process the data coming over the connection, according to the mode.
+
+  Close the connection
+  Terminate the thread.
+
+</pre>
+</font></font></body></html>

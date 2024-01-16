@@ -1,0 +1,85 @@
+<html><head>
+<meta http-equiv="content-type" content="text/html; charset=windows-1252"> <title> Elliott &lt;/center&gt; </title>
+</head>
+<body cz-shortcut-listen="true">
+
+<font face="Comic Sans MS" size="1">
+
+1.2 Updates: 
+<ul>
+<li> none
+</li></ul>
+
+<font face="Cambria" size="5">
+
+<center>  Joke Server Mode Component </center>
+
+<font face="Cambria" size="3">
+
+<h3> Server Logic: </h3>
+
+
+The logic for your server is going to have to be extended for the admin
+component (the separate connection to set the server mode) to work, and this
+may take a little thought.<p>
+
+Remember that your server is blocked, and waiting, for client joke/proverb
+input.</p><p>
+
+But, you also want it blocked, and waiting, for administration input.</p><p>
+
+It is not possible to block a single thread in two places at once. Thus, it
+is a certainty that you will have to make an <i> asynchronous </i> call to
+start a blocking wait for adminstration input, before sending on the main
+program thread into the blocking wait for client input.</p><p>
+
+Something like the following code will do this:
+
+</p><hr>
+<pre>  public static void main(String a[]) throws IOException {
+    int q_len = 6; /* Number of requests for OpSys to queue */
+    int port = 4545;
+    Socket sock;
+
+    AdminLooper AL = new AdminLooper(); // create a DIFFERENT thread
+    Thread t = new Thread(AL);
+    t.start();  // ...and start it, waiting for administration input
+    
+    ServerSocket servsock = new ServerSocket(port, q_len);
+        
+    System.out.println("Clark Elliott's Joke server starting up at port 4545.\n");
+    while (controlSwitch) {
+      // wait for the next client connection:
+      sock = servsock.accept();
+      new Worker (sock).start();
+    }
+  }
+
+
+and
+
+
+class AdminLooper implements Runnable {
+  public static boolean adminControlSwitch = true;
+
+  public void run(){ // RUNning the Admin listen loop
+    System.out.println("In the admin looper thread");
+    
+    int q_len = 6; /* Number of requests for OpSys to queue */
+    int port = 5050;  // We are listening at a different port for Admin clients
+    Socket sock;
+
+    try{
+      ServerSocket servsock = new ServerSocket(port, q_len);
+      while (adminControlSwitch) {
+	// wait for the next ADMIN client connection:
+	sock = servsock.accept();
+	new AdminWorker (sock).start(); 
+      }
+    }catch (IOException ioe) {System.out.println(ioe);}
+  }
+
+<pre> 
+
+<hr>
+</pre></pre></font></font></font></body></html>
