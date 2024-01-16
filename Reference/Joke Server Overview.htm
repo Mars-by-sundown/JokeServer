@@ -126,8 +126,8 @@ etc. comes with the territory, and you should not underestimate the amount of ti
 take you during the initial phases of this project.<p>
 
 </p><p></p></li><li> <b> JokeLog.txt</b> (Will later be inserted at the bottom of JokeServer.java as Java
-comments.) Capture the console output from your running programs so that the output—showing
-your working processes in each of the three terminal windows—can be placed in your JokeLog.txt
+comments.) Capture the console output from your running programs so that the outputï¿½showing
+your working processes in each of the three terminal windowsï¿½can be placed in your JokeLog.txt
 file. Manual <b> Copy and Paste </b> from the console is probably the easiest scheme, and
 exactly what I suggest. I do NOT recommend writing to a file, because it takes a lot more work
 and you'll have to address having three output streams from at least three running processes in
@@ -135,7 +135,7 @@ three files that later have to get concatenated together. <i> Don't waste time m
 output fancy. </i>
 
 <p></p></li><li> Note that you have to maintain a theoretically unlimited number of arrays, or other
-data structures, to keep track of client state—one for each conversation—for a
+data structures, to keep track of client stateï¿½one for each conversationï¿½for a
 theoretically unlimited number of Joke Clients; you have to connect from two different kinds of
 clients (Jokeclient and JokeClientAdmin); and so on. Each of these steps may take some thought,
 so leave plenty of time to get this assignment finished. <p>
@@ -177,7 +177,7 @@ server loop listening for JokeClientAdmin connections (see example code below). 
 the admin client and automatically toggle the server mode between joke and proverb on each
 connection. Display on both the server console and the admin client console what the mode is
 each time you toggle. If you are not clear on how to change the server mode in one method (and
-thread—e.g. the Admin Worker) and read it in another (e.g. the Joke Worker) you can refer
+threadï¿½e.g. the Admin Worker) and read it in another (e.g. the Joke Worker) you can refer
 to this <a href="https://condor.depaul.edu/~elliott/435/hw/programs/Joke/ModeChanger.java"> Mode Changer Method </a> as one way you might want to do this.
 
 <p> </p></li><li> You can see how to generate three executable, named .class files fron one Java source
@@ -198,7 +198,7 @@ COMPLETED" or "PROVERB CYCLE COMPLETED."
 
 <p></p></li><li> Connect from multiple Joke Clients and verify that the previous step works for <i> each client,
 independently </i> without interference from other clients. THIS IS IMPORTANT. You will need to
-have a separate data structure saving each conversation—one for each Joke Client. In
+have a separate data structure saving each conversationï¿½one for each Joke Client. In
 theory you should be able to support 10,000 independent conversations with your code.
 
 <p></p></li><li> Return interleaved jokes and proverbs, depending on server mode at the time of any given
@@ -262,7 +262,7 @@ considerations. You can include <i> annotated </i> URLs as part of your discussi
 topics might have to do with discussions about maintaining conversation state. Or, you can
 <b> reply to any of the above </b> that others have posted. Answers to coding or design questions are
 always a big hit. Postings that initiate or take part in <i>discussions </i> are always more
-highly prized. Submit your two (or more) postings with your Java code—at the bottom of
+highly prized. Submit your two (or more) postings with your Java codeï¿½at the bottom of
 JokeServer.java as Java comments.
 
 <h2> Multi-threaded Joke and Proverb Server: </h2>
@@ -427,7 +427,7 @@ proverb. </i> In other words, when the jokes get randomized, the lables do too.
 
 <p></p></li><li> Joke / proverb interleaving: Suppose you are in Joke Mode and have seen two jokes. Then
 you swith to Proverb Mode. At this point, the joke state goes into "suspeneded
-animation"—it is frozen in time. When you later return to Joke Mode, you pick up exactly
+animation"ï¿½it is frozen in time. When you later return to Joke Mode, you pick up exactly
 where you left off (e.g., the third joke in the sequence) without any concern whatsoever about
 what happened in Proverb Mode. And, the same is true for proverb state.
 
@@ -585,7 +585,7 @@ clients. Thereafter, the client just sends the number assigned, as the cookie. <
 
 </p><p></p></li><li> FOR THE TWO-SERVER MODEL: When extending our client / server system to use multiple
 servers (see below), we have additional design concerns. Each client will now have <i> two </i>
-conversations going—one with each server. If you use the state-maintenance model of
+conversations goingï¿½one with each server. If you use the state-maintenance model of
 storing everything on the server, and only a UUID/cookie on the client, then you only need to
 pass the same UUID to either server, and you'll get put back in the right conversation from
 each respective server. If, by contrast, you store everything on the client, you'll have to
@@ -621,7 +621,7 @@ don't complete it. <p>
 or the clients, everything MUST continue to work exactly as above, which is the default mode of
 operation. <p>
 
-</p></li><li> Your secondary server—<i>using exactly the same code</i>—will run in its own
+</p></li><li> Your secondary serverï¿½<i>using exactly the same code</i>ï¿½will run in its own
 process in a separate command shell but communicating via different ports.<p>
 
 </p></li><li> Modify your JokeServer to accept an argument, the token
@@ -670,7 +670,7 @@ Joke Mode and Proverb Mode, showing that state is correctly maintained across ch
 modes.<p>
 
 </p></li><li> Put the output from your running sessions in a text log file and ANNOTATE the
-output—highlighting the randomness of the jokes, the interleaving of modes, etc. NEVER
+outputï¿½highlighting the randomness of the jokes, the interleaving of modes, etc. NEVER
 alter any of the output data, but you can add some white space and some annotation headings to
 make it easier for us to read if you like.<p>
 
