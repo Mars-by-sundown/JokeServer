@@ -4,7 +4,9 @@
  import java.util.ArrayList;
 
 
-
+/**
+ *  Serializable Object to hold data passed between Joke Server and Client
+ */
 class JokeData implements Serializable {
     String clientID;
     String cookie;
@@ -13,6 +15,9 @@ class JokeData implements Serializable {
     String body;
 }
 
+/**
+ *  Serializable Object to hold data passed between Joke Server and Admin Clients
+ */
 class AdminData implements Serializable{
     String serverHost;
     int serverPort;
@@ -20,6 +25,10 @@ class AdminData implements Serializable{
     int adminPort;
     boolean serverMode;
 } 
+
+/**
+ *  Joke Client, called from command line with >java JokeClient
+ */
 class JokeClient {
     private static String clientCookie = "0000";
     public static void main(String argv[]) {
@@ -124,6 +133,7 @@ class JokeClient {
 
 /**
  *  Keeps information about which server the client is currently using
+ *  Provides functionality to toggle servers
  */
 class ClientServerManager {
     private String prim_host = "localhost";
@@ -178,6 +188,9 @@ class ClientServerManager {
 
 }
 
+/**
+ *  Joke Admin Client, called from command line with >java JokeClientAdmin
+ */
 class JokeClientAdmin {
     public static void main(String argv[]) {
         JokeClientAdmin cc = new JokeClientAdmin(argv);
@@ -270,6 +283,10 @@ class JokeClientAdmin {
         }
     }
 }
+
+/**
+ *  Worker thread that communicates with the Chosen Joke Server
+ */
 class JokeAdminServerWorker extends Thread{
     Socket sock;
     AdminListener al;
@@ -304,6 +321,10 @@ class JokeAdminServerWorker extends Thread{
         }
     }
 }
+
+/**
+ *  Listener for Admin Client connections, spawned as a thread from the Joke Server
+ */
 class AdminListener implements Runnable{
     public static boolean serverProverbMode = false;
     public void run(){
@@ -335,6 +356,9 @@ class AdminListener implements Runnable{
     }
 }
 
+/**
+ *  Processes requests for each Client
+ */
 class JokeWorker extends Thread {
     Socket sock;
     boolean proverbMode;
@@ -376,6 +400,9 @@ class JokeWorker extends Thread {
     }
 } 
 
+/**
+ *  JokeServer that manages creation of JokeWorker threads
+ */
 public class JokeServer {
     public static void main(String[] args) throws Exception {
         int q_len = 6; /*Maximum number of requests to queue in the backlog, additional requests will be refused if full */
