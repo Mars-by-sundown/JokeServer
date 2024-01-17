@@ -24,6 +24,15 @@
             "console": "integratedTerminal",
             "args": "",
             "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "java",
+            "name": "JokeClientAdmin",
+            "request": "launch",
+            "mainClass": "JokeClientAdmin",
+            "console": "integratedTerminal",
+            "args": "",
+            "cwd": "${workspaceFolder}"
         }
     ],
     "compounds": [
@@ -31,6 +40,12 @@
             "name": "Server/ Client",
             "configurations": ["JokeServer","JokeClient"],
             "stopAll": false,
+        },
+        {
+            "name": "Server/ Client w/Admin",
+            "configurations": ["JokeServer","JokeClient", "JokeClientAdmin"],
+            "stopAll": false,
         }
+
     ]
 }
