@@ -1,18 +1,94 @@
- import java.io.*;
- import java.net.*;
- import java.util.Scanner;
- import java.util.ArrayList;
+import java.io.*;
+import java.net.*;
+import java.util.Scanner;
+import java.util.Set;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 
+
+/**
+ *  custom container to hold info related to each joke or proverb, with a constructor for easy creation
+ */
+class JokeProverb{
+    Boolean isJoke;
+    String prefix;
+    String body;
+    public JokeProverb(Boolean isJoke, String prefix, String body){
+        this.isJoke = isJoke;
+        this.prefix = prefix;
+        this.body = body;
+    }
+}
+
+
+/**
+ *  @implNote This is instantiated in the JokeServer method each JokeWorker will receive the 'reference' to this class.
+ *  @implNote This class is specifically setup for 4 jokes and then 4 proverbs to be entered in order
+ *  @implNote Randomizing for each client is automatically handled in this class
+ */
+class JokeManager{
+    private ArrayList<JokeProverb> jokesAndProverbs = new ArrayList<>();
+    private HashMap<String, String> clientData = new HashMap<>();
+    /* clientData stores as follows:
+     *      key: clientID
+     *      value: String of encoded binary values 0 or 1 in the form of ##########
+     *          digits 0-3: seen jokes (1 if seen)
+     *          digit 4: all jokes seen atleast once if set to 1
+     *          digit 5-8: seen proverbs (1 if seen)
+     *          digit 9: all proverbs seen atleast once if set to 1
+     */
+
+    public void addJokeProverb(String prefix, String body){
+        JokeProverb j = new JokeProverb(true, prefix, body);
+        jokesAndProverbs.add(j);
+    }
+
+    /**
+     * @param proverbMode - True if server is in Proverb mode
+     * @param clientID - Unique ID of client
+     * @return A Joke or Proverb that the client has not seen 
+     */
+    public JokeProverb getJokeProverb(Boolean proverbMode, String clientID){
+
+        StringBuilder str = new StringBuilder(clientData.get(clientID)); //get saved client cookie with encoded history of sent jokes
+        int idxShift = 0; //default to checking joke values
+        JokeProverb returnValue;
+    
+        //if we are in proverb mode then shift add an additional 5 to the index shift
+        if(proverbMode){
+            idxShift = idxShift + 5; //move 5 to the right to look at joke values
+        }
+
+        if(str.charAt(4 + idxShift) == '0'){
+
+            //first time serving this client because 5th digit of the series is a zero (####0), so go in order
+            for(int i = 0; i < 4; i++){
+                //count to 4
+                if(str.charAt(i + idxShift) == '0'){
+                    //return first unseen joke or proverb we come across
+                    returnValue = jokesAndProverbs.get(i + idxShift);
+                }
+                if(i == 3){
+                    //we have reached the final entry and it was not a zero, thus we have 11110
+                    //this means this is the first time completing the set and we need to 
+                }
+            }
+
+        }
+        //if we make it here then all values were seen
+
+        
+        return returnValue;
+    }
+}
 
 /**
  *  Serializable Object to hold data passed between Joke Server and Client
  */
-class JokeData implements Serializable {
-    String clientID;
-    String cookie;
-    int serverMode;
-    String prefix;
-    String body;
+class ClientData implements Serializable {
+    String clientID; //client needs to be able to send and receive its unique ID
+    JokeProverb message; //client needs to be able to receive the message object
 }
 
 /**
@@ -26,11 +102,12 @@ class AdminData implements Serializable{
     boolean serverMode;
 } 
 
+
+
 /**
  *  Joke Client, called from command line with >java JokeClient
  */
 class JokeClient {
-    private static String clientCookie = "0000";
     public static void main(String argv[]) {
         JokeClient cc = new JokeClient(argv);
         cc.run(argv);
@@ -89,9 +166,9 @@ class JokeClient {
     void queryServer(String userName, ClientServerManager CSM){
         try{
 
-            //create a JokeData object to pass the data to and from the server
-            JokeData JokeObj = new JokeData();
-            JokeObj.clientID = userName;
+            //create a ClientData object to pass the data to and from the server
+            ClientData ClientDataObj = new ClientData();
+            ClientDataObj.clientID = userName;
 
             //Establish a connection to the server
             Socket socket = new Socket(CSM.getServer(), CSM.getPort());
@@ -100,15 +177,15 @@ class JokeClient {
             //establish an output stream using our socket add send our info
             OutputStream outStream = socket.getOutputStream();
             ObjectOutputStream objectOutStream = new ObjectOutputStream(outStream);
-            objectOutStream.writeObject(JokeObj);
+            objectOutStream.writeObject(ClientDataObj);
 
             //Establish an input stream to listen for a response
             InputStream inStream = socket.getInputStream();
             ObjectInputStream objectInStream = new ObjectInputStream(inStream);
 
-            //Read the serialized JokeData response sent by the JokeServer
-            JokeData inObject = (JokeData) objectInStream.readObject();
-            System.out.println(inObject.body);
+            //Read the serialized ClientData response sent by the JokeServer
+            ClientData inObject = (ClientData) objectInStream.readObject();
+            System.out.println(inObject.message);
             socket.close();
 
         }catch(ConnectException CE){
@@ -122,7 +199,7 @@ class JokeClient {
             UH.printStackTrace();
 
         }catch(ClassNotFoundException CNF){
-            //This will be thrown if there is an issue with the Serialized JokeData class we are passing back and forth
+            //This will be thrown if there is an issue with the Serialized ClientData class we are passing back and forth
             CNF.printStackTrace();
 
         }catch(IOException IOE){
@@ -196,7 +273,6 @@ class JokeClientAdmin {
         JokeClientAdmin cc = new JokeClientAdmin(argv);
         cc.run(argv);
     }
-
     public JokeClientAdmin(String argv[]) {
         System.out.println("\nThis is the Constructor\n");
     }
@@ -275,7 +351,7 @@ class JokeClientAdmin {
             UH.printStackTrace();
 
         }catch(ClassNotFoundException CNF){
-            //This will be thrown if there is an issue with the Serialized JokeData class we are passing back and forth
+            //This will be thrown if there is an issue with the Serialized ClientData class we are passing back and forth
             CNF.printStackTrace();
 
         }catch(IOException IOE){
@@ -362,11 +438,15 @@ class AdminListener implements Runnable{
 class JokeWorker extends Thread {
     Socket sock;
     boolean proverbMode;
+    JokeManager jm;
     //Constructor
-    JokeWorker(Socket s, AdminListener admin){
+
+    JokeWorker(Socket s, AdminListener admin, JokeManager serverJM){
+
         //takes an arg of socket type and assigns it to local JokeWorker member, sock
         sock = s;
         proverbMode = admin.getMode();
+        jm = serverJM;
     }
 
     public void run(){
@@ -375,16 +455,11 @@ class JokeWorker extends Thread {
             //listen for incoming client info
             InputStream InStream = sock.getInputStream();
             ObjectInputStream ObjectInStream = new ObjectInputStream(InStream);
-            JokeData InObject = (JokeData) ObjectInStream.readObject();
+            ClientData InObject = (ClientData) ObjectInStream.readObject();
 
             System.out.println("Client Data Received: ");
-            System.out.println("    Username: " + InObject.clientID);
+            System.out.println("    ClientID: " + InObject.clientID);
 
-            if(proverbMode){
-                InObject.body = "This is a test Proverb";
-            }else{
-                InObject.body = "This is a test Joke";
-            }
 
             OutputStream outStream = sock.getOutputStream();
             ObjectOutputStream objectOutStream = new ObjectOutputStream(outStream);
@@ -398,22 +473,31 @@ class JokeWorker extends Thread {
             x.printStackTrace();
         }
     }
+
+
 } 
 
 /**
  *  JokeServer that manages creation of JokeWorker threads
  */
 public class JokeServer {
+
+    
+
     public static void main(String[] args) throws Exception {
         int q_len = 6; /*Maximum number of requests to queue in the backlog, additional requests will be refused if full */
         int serverPort = 4545;
         Socket sock;
+
 
         //create a thread to go and listen for admin connections
         AdminListener admin = new AdminListener();
         Thread adminThread = new Thread(admin);
         adminThread.start();
         
+        //create our clientMap to hold client joke history
+        JokeManager JokeProverbManager = new JokeManager();
+
         //Create our server socket using our port and allowed queue length
         ServerSocket serverSock = new ServerSocket(serverPort, q_len);
         System.out.println("Server open and awaiting connections from clients...");
@@ -421,7 +505,9 @@ public class JokeServer {
             //Listen until a request comes in, accept it and spin up a worker thread to handle it
             sock = serverSock.accept(); //accept creates a new Socket and returns it
             System.out.println("Connection from: " + sock);
-            new JokeWorker(sock, admin).start();
+            new JokeWorker(sock, admin, JokeProverbManager).start();
         }
     }
+
+    
 }
