@@ -60,26 +60,37 @@ class JokeManager{
             idxShift = idxShift + 5; //move 5 to the right to look at joke values
         }
 
+        //if our joke or proverb digit in the 4th or 9th index is 0, it is our first time through
         if(str.charAt(4 + idxShift) == '0'){
-
             //first time serving this client because 5th digit of the series is a zero (####0), so go in order
-            for(int i = 0; i < 4; i++){
+            for(int i = 0 + idxShift; i < 4 + idxShift; i++){
                 //count to 4
-                if(str.charAt(i + idxShift) == '0'){
+                if(str.charAt(i) == '0'){
                     //return first unseen joke or proverb we come across
-                    returnValue = jokesAndProverbs.get(i + idxShift);
+                    return jokesAndProverbs.get(i);
                 }
                 if(i == 3){
                     //we have reached the final entry and it was not a zero, thus we have 11110
-                    //this means this is the first time completing the set and we need to 
+                    //this means this is the first time completing the set and we need to return completed msg
+                    //set the prefix as CC to signal the client to use the cycle complete procedure
+
+                    if(proverbMode){
+                        clientData.replace(clientID,str.replace(5, str.length(), "00001").toString());
+                        System.out.println(str.toString());
+                        return new JokeProverb(proverbMode, "<CC>", "PROVERB CYCLE COMPLETED");
+
+                    }else{
+                        clientData.replace(clientID,str.replace(0, 5, "00001").toString());
+                        System.out.println(str.toString());
+                        return new JokeProverb(proverbMode, "<CC>", "JOKE CYCLE COMPLETED");
+                    }
                 }
             }
 
+        }else{
+            //we have been through 1 time already and we will need to provide a random reply
         }
-        //if we make it here then all values were seen
-
-        
-        return returnValue;
+        return new JokeProverb(false, clientID, clientID); //PLACEHOLDER RETURN VALUE
     }
 }
 
