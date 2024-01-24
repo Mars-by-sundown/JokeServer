@@ -1,19 +1,34 @@
 import java.io.*;
 import java.net.*;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
-
+import java.util.Random;
+/*
+ *  Thanks to John O'Hanley at http://www.javapractices.com/topic/TopicAction.do?Id=12 for reference material on how to make a shallow copy of an object (used in JokeManager)
+ *  Thanks to Readers Digest for the jokes, as I am not a comedian https://www.rd.com/list/short-jokes/
+ *  
+ */
 
 /**
  *  custom container to hold info related to each joke or proverb, with a constructor for easy creation
  */
-class JokeProverb{
+class JokeProverb implements Serializable{
     Boolean isJoke;
+    Boolean isLast = false; //will be false unless JokeManager changes to notify client
     String prefix;
     String body;
+
+    public JokeProverb(){
+        //empty constructor
+        this.isJoke = true;
+        this.prefix = "";
+        this.body = "";
+    }
+    //to make a copy of another JokeProverb
+    public JokeProverb(JokeProverb otherJokeProverb){
+        this(otherJokeProverb.isJoke, otherJokeProverb.prefix, otherJokeProverb.body);
+    }
     public JokeProverb(Boolean isJoke, String prefix, String body){
         this.isJoke = isJoke;
         this.prefix = prefix;
@@ -28,70 +43,114 @@ class JokeProverb{
  *  @implNote Randomizing for each client is automatically handled in this class
  */
 class JokeManager{
-    private ArrayList<JokeProverb> jokesAndProverbs = new ArrayList<>();
-    private HashMap<String, String> clientData = new HashMap<>();
-    /* clientData stores as follows:
-     *      key: clientID
-     *      value: String of encoded binary values 0 or 1 in the form of ##########
-     *          digits 0-3: seen jokes (1 if seen)
-     *          digit 4: all jokes seen atleast once if set to 1
-     *          digit 5-8: seen proverbs (1 if seen)
-     *          digit 9: all proverbs seen atleast once if set to 1
-     */
+    private ArrayList<JokeProverb> jokeList = new ArrayList<>();
+    private ArrayList<JokeProverb> proverbList = new ArrayList<>();
+    private ArrayList<ArrayList<JokeProverb>> JPList = new ArrayList<>();
+    private HashMap<String, ArrayList<String>> clientData = new HashMap<>();
 
-    public void addJokeProverb(String prefix, String body){
-        JokeProverb j = new JokeProverb(true, prefix, body);
-        jokesAndProverbs.add(j);
+    JokeManager(){
+        JPList.add(jokeList);
+        JPList.add(proverbList);
     }
 
-    /**
-     * @param proverbMode - True if server is in Proverb mode
-     * @param clientID - Unique ID of client
-     * @return A Joke or Proverb that the client has not seen 
-     */
-    public JokeProverb getJokeProverb(Boolean proverbMode, String clientID){
-
-        StringBuilder str = new StringBuilder(clientData.get(clientID)); //get saved client cookie with encoded history of sent jokes
-        int idxShift = 0; //default to checking joke values
-        JokeProverb returnValue;
-    
-        //if we are in proverb mode then shift add an additional 5 to the index shift
-        if(proverbMode){
-            idxShift = idxShift + 5; //move 5 to the right to look at joke values
+    public void addJokeProverb(boolean isJoke, String prefix, String body){
+        JokeProverb jp = new JokeProverb(isJoke, prefix, body);
+        if(isJoke){
+            JPList.get(0).add(jp); //add to the joke list
+        }else{
+            JPList.get(1).add(jp); //add to the proverb list
         }
+    }
 
-        //if our joke or proverb digit in the 4th or 9th index is 0, it is our first time through
-        if(str.charAt(4 + idxShift) == '0'){
-            //first time serving this client because 5th digit of the series is a zero (####0), so go in order
-            for(int i = 0 + idxShift; i < 4 + idxShift; i++){
-                //count to 4
-                if(str.charAt(i) == '0'){
-                    //return first unseen joke or proverb we come across
-                    return jokesAndProverbs.get(i);
-                }
-                if(i == 3){
-                    //we have reached the final entry and it was not a zero, thus we have 11110
-                    //this means this is the first time completing the set and we need to return completed msg
-                    //set the prefix as CC to signal the client to use the cycle complete procedure
+    public void addNewClient(String clientID){
+        ArrayList<String> clientStateData = new ArrayList<>();
+        clientStateData.add("00000"); //add the base joke state
+        clientStateData.add("00000"); //add the base proverb state
+        clientData.put(clientID, clientStateData);
+    }
 
-                    if(proverbMode){
-                        clientData.replace(clientID,str.replace(5, str.length(), "00001").toString());
-                        System.out.println(str.toString());
-                        return new JokeProverb(proverbMode, "<CC>", "PROVERB CYCLE COMPLETED");
+    public boolean clientExists(String clientID){
+        return clientData.containsKey(clientID);
+    }
+
+    public JokeProverb getNextForClient(String clientID, boolean proverbMode){
+        JokeProverb jp_return = new JokeProverb(); //the object to hold our returned value
+        int JPIDX; //used to select either the list of jokes or list of proverbs, also allows us to get the correct clientID state index
+        String clientStateString;
+        if(proverbMode){
+            JPIDX = 1;
+        }else{
+            JPIDX = 0;
+        }
+        // gets the length 2 array of client state
+        // clientData layout
+        // key = clientID
+        // value = ArrayList where
+        // index = 0, is the Joke state data for that client
+        // index = 1, is the Proverb state data for that client
+        // clientData {clientID: ["00000", "00000"]}
+        clientStateString = (clientData.get(clientID)).get(JPIDX); 
+        StringBuilder CSB = new StringBuilder(clientStateString); //a string builder to manipulate the client state data
+
+        /*
+         *  The state data can be decoded as follows
+         *  index 0-3: each is a binary representation of if it has been sent or not already
+         *      0 indicates it has not been sent, 1 indicates it has
+         *  
+         *  index 4: indicates whether the client has seen all in order once already
+         *      0 indicates to sent responses in order
+         *      1 indicates we have seen all atleast once, and will be randomized from here on out
+         */
+
+        if (CSB.charAt(4) == '0'){
+            //this is our first time through, so send in order
+            for(int i = 0; i < 4; i++){
+                if(CSB.charAt(i) == '0'){
+                    //send this one!
+                    jp_return = new JokeProverb(JPList.get(JPIDX).get(i));
+                    if(i == 3){
+                        //if this is the last possible one to send we need to do some additional work to ready the state for next time
+                        jp_return.isLast = true; //we set true, so client knows to send the notification of cycle completion
+                        CSB.replace(0, CSB.length(),"00001"); //set all back to zero, and set last digit to 1 to force randomization from now on
 
                     }else{
-                        clientData.replace(clientID,str.replace(0, 5, "00001").toString());
-                        System.out.println(str.toString());
-                        return new JokeProverb(proverbMode, "<CC>", "JOKE CYCLE COMPLETED");
+                        CSB.setCharAt(i, '1'); //mark it as seen
                     }
+                    break;
+                }
+            }
+        }else{
+            //this is NOT our first time through, so we need to return a random response
+            ArrayList<Integer> idxList = new ArrayList<>();
+            //record the indexes that we find an unsent response at
+            for(int i = 0; i < 4; i++){
+                if(CSB.charAt(i) == '0'){
+                    idxList.add(i);
                 }
             }
 
-        }else{
-            //we have been through 1 time already and we will need to provide a random reply
+            if(idxList.size() == 1){
+                //only one left so return whatever that index is
+                jp_return = new JokeProverb(JPList.get(JPIDX).get(idxList.get(0)));
+                jp_return.isLast = true; //notify of cycle completion
+                CSB.replace(0,CSB.length(), "00001"); //reset
+            }else{
+                //RANDOMIZE
+                Random randomizer = new Random();
+                //pick a random index in the list of available indexes we have previously found
+                int randIdx = randomizer.nextInt(idxList.size());
+                jp_return = new JokeProverb(JPList.get(JPIDX).get(idxList.get(randIdx)));
+                CSB.setCharAt(idxList.get(randIdx), '1'); //set the state at that index to 1
+            }
         }
-        return new JokeProverb(false, clientID, clientID); //PLACEHOLDER RETURN VALUE
+
+        clientData.get(clientID).set(JPIDX, CSB.toString()); //update our client data with the new state data
+        return jp_return;
     }
+    
+
+
+
 }
 
 /**
@@ -196,7 +255,22 @@ class JokeClient {
 
             //Read the serialized ClientData response sent by the JokeServer
             ClientData inObject = (ClientData) objectInStream.readObject();
-            System.out.println(inObject.message);
+            
+            StringBuilder respStr = new StringBuilder();
+            respStr.append(inObject.message.prefix + " ");
+            respStr.append(userName + ": ");
+            respStr.append(inObject.message.body);
+            System.out.println(respStr.toString());
+            if(inObject.message.isLast){
+                respStr.delete(0, respStr.length());
+                if(inObject.message.isJoke){
+                    respStr.append("JOKE ");
+                }else{
+                    respStr.append("PROVERB ");
+                }
+                respStr.append("CYCLE COMPLETED");
+                System.out.println(respStr.toString());   
+            }
             socket.close();
 
         }catch(ConnectException CE){
@@ -413,17 +487,30 @@ class JokeAdminServerWorker extends Thread{
  *  Listener for Admin Client connections, spawned as a thread from the Joke Server
  */
 class AdminListener implements Runnable{
-    public static boolean serverProverbMode = false;
+    public static boolean serverProverbMode = false; //server starts in joke mode by default
+    private boolean isPrimary;
+    private InetAddress hostIP;
+    private int serverPort;
+    public AdminListener(InetAddress hostIP, boolean isPrimary){
+        this.isPrimary = isPrimary;
+        this.hostIP = hostIP;
+    }
+    
     public void run(){
         int q_len = 6; /*Maximum number of requests to queue in the backlog, additional requests will be refused if full */
-        int serverPort = 5050;
+        if(isPrimary){
+            serverPort = 5050;
+        }else{
+            serverPort = 5051;
+        }
+        
         Socket adminSock;
 
         try{
-            ServerSocket adminSocket = new ServerSocket(serverPort, q_len);
+            ServerSocket adminSocket = new ServerSocket(serverPort, q_len, hostIP );
             while(true){
                 adminSock = adminSocket.accept();
-                System.out.println("Admin connection from: " + adminSock);
+                System.out.println("##Admin connection from: " + hostIP + ": " + adminSock);
                 new JokeAdminServerWorker(adminSock, this).start();
             }
         }catch(IOException IOE){
@@ -466,15 +553,25 @@ class JokeWorker extends Thread {
             //listen for incoming client info
             InputStream InStream = sock.getInputStream();
             ObjectInputStream ObjectInStream = new ObjectInputStream(InStream);
-            ClientData InObject = (ClientData) ObjectInStream.readObject();
+            ClientData clientTransObj = (ClientData) ObjectInStream.readObject();
 
-            System.out.println("Client Data Received: ");
-            System.out.println("    ClientID: " + InObject.clientID);
+            System.out.println("Client Data Received, Client ID: " + clientTransObj.clientID);
+            
 
+            //if this is a new client then create an entry for them
+            if(!jm.clientExists(clientTransObj.clientID)){
+                jm.addNewClient(clientTransObj.clientID);
+                System.out.println(clientTransObj.clientID + " is a new client, created a new client entry in the JokeManager");
+            }
+
+            //get the next joke or proverb
+            clientTransObj.message = jm.getNextForClient(clientTransObj.clientID, proverbMode);
 
             OutputStream outStream = sock.getOutputStream();
             ObjectOutputStream objectOutStream = new ObjectOutputStream(outStream);
-            objectOutStream.writeObject(InObject);
+            System.out.println("    Sending " + clientTransObj.message.prefix + " to " + clientTransObj.clientID);
+            objectOutStream.writeObject(clientTransObj);
+            System.out.println("Closing connection...\n");
             sock.close(); //close the connection, we are done
 
         }catch( ClassNotFoundException CNF){
@@ -488,6 +585,7 @@ class JokeWorker extends Thread {
 
 } 
 
+
 /**
  *  JokeServer that manages creation of JokeWorker threads
  */
@@ -498,20 +596,35 @@ public class JokeServer {
     public static void main(String[] args) throws Exception {
         int q_len = 6; /*Maximum number of requests to queue in the backlog, additional requests will be refused if full */
         int serverPort = 4545;
+        boolean isPrimary = true;
+
+        if(args.length == 1 && args[0].equals("secondary")){
+            serverPort = 4546;
+            isPrimary = false; //indicate this is a secondary server
+        }
+        
         Socket sock;
 
 
         //create a thread to go and listen for admin connections
-        AdminListener admin = new AdminListener();
+        AdminListener admin = new AdminListener(InetAddress.getLocalHost(), isPrimary);
         Thread adminThread = new Thread(admin);
         adminThread.start();
         
-        //create our clientMap to hold client joke history
+        //start our jokemanager and load in jokes/ proverbs
         JokeManager JokeProverbManager = new JokeManager();
+        JokeProverbManager.addJokeProverb(true, "JA", "Why dont scientists trust atoms? Because they make up everything.");
+        JokeProverbManager.addJokeProverb(true, "JB", "What do you call a fake noodle? An impasta.");
+        JokeProverbManager.addJokeProverb(true, "JC", "What did the pirate say when he turned 80? Aye matey!");
+        JokeProverbManager.addJokeProverb(true, "JD", "What did the buffalo say when his son left for college?  Bison.");
+        JokeProverbManager.addJokeProverb(false, "PA", "If you want to go fast, go alone. If you want to go far, go together.");
+        JokeProverbManager.addJokeProverb(false, "PB", "A man who uses force is afraid of reasoning.");
+        JokeProverbManager.addJokeProverb(false, "PC", "A spoon does not know the taste of soup, nor a learned fool the taste of wisdom.");
+        JokeProverbManager.addJokeProverb(false, "PD", "The reputation of a thousand years may be determined by the conduct of one hour.");
 
         //Create our server socket using our port and allowed queue length
-        ServerSocket serverSock = new ServerSocket(serverPort, q_len);
-        System.out.println("Server open and awaiting connections from clients...");
+        ServerSocket serverSock = new ServerSocket(serverPort, q_len, InetAddress.getLocalHost());
+        System.out.println("Server open on port " + serverPort + " and awaiting connections from clients...");
         while(true){
             //Listen until a request comes in, accept it and spin up a worker thread to handle it
             sock = serverSock.accept(); //accept creates a new Socket and returns it
