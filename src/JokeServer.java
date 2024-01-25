@@ -178,6 +178,7 @@ class AdminData implements Serializable{
  *  Joke Client, called from command line with >java JokeClient
  */
 class JokeClient {
+    ClientServerManager CSM = new ClientServerManager();
     public static void main(String argv[]) {
         JokeClient cc = new JokeClient(argv);
         cc.run(argv);
@@ -188,48 +189,65 @@ class JokeClient {
     }
 
     public void run(String argv[]) {
-        ClientServerManager CSM = new ClientServerManager();
+    
+        try{
 
-        //get the server name or address we were passed
-        if(argv.length == 1) {
-            //only different primary was provided so update that
-            CSM.setPrimaryServer(argv[0]);
-
-        }else if (argv.length == 2){
-            CSM.setPrimaryServer(argv[0]);
-            CSM.setPrimaryServer(argv[1]);
-        }else{
-            //use defaults of the CSM class
-        }
-
-        //Scanner Object to allow input from client console
-        Scanner clientIn = new Scanner(System.in);
-
-        //Get the name of the user
-        System.out.println("Enter your name: ");
-        System.out.flush();
-        String userName = clientIn.nextLine();
-        System.out.println("Hi " + userName + "!\n    If a second server was provided you can type s to switch between them\n");
-
-        //get Joke loop, this takes new Joke requests until quit is typed
-        String clientStr = "";
-        do{
-            System.out.println("Hit ENTER to get a new response or type quit to exit...");
-            clientStr = clientIn.nextLine();
-            if(clientStr.indexOf("s") >= 0){
-                if(CSM.toggleServer() == 0){
-                    //if it failed to switch
-                    System.out.println("No Secondary Server was provided at client startup, unable to switch");
-                }
-                //print the server info regardless
-                System.out.println("Server: " + CSM.getServer() + "  Port: " + CSM.getPort());
-            } else if(clientStr.indexOf("quit") < 0){
-                queryServer(userName, CSM);
+            if(argv.length == 0){
+                //use default localhost w/o secondary
+                CSM.setPrimaryServer(InetAddress.getLocalHost());
+            }else if(argv.length == 1){
+                //change the primary, still no secondary
+                CSM.setPrimaryServer(InetAddress.getByName(argv[0]));
+            }else if(argv.length == 2){
+                //change the primary, set the secondary
+                CSM.setPrimaryServer(InetAddress.getByName(argv[0]));
+                CSM.setSecondaryServer(InetAddress.getByName(argv[1]));
+            }else{
+                //wrong number of args were entered
+                System.out.println("Wrong number of arguments entered please enter in the form of >Java JokeClientAdmin <IPaddr> <IPaddr> ");
             }
-        }while (clientStr.indexOf("quit") < 0);
-        System.out.println("Cancelled by user request.");
-        clientIn.close(); //Added this as it was not closed in the original JokeClient code
-        
+            //set the ports to the admin ports
+            CSM.setPrimaryPort(4545);
+            CSM.setSecondaryPort(4546);
+            StringBuilder connInfo = new StringBuilder();
+            connInfo.append("Server one: " + CSM.getPrimaryServerString() + ", port: " + CSM.getPrimaryPortString());
+            if(CSM.hasSecondary()){
+                connInfo.append(" Server two: " + CSM.getSecondaryServerString() + ", port: " + CSM.getSecondaryPortString());
+            }
+            System.out.println(connInfo.toString());
+            //Scanner Object to allow input from client console
+            Scanner clientIn = new Scanner(System.in);
+
+            //Get the name of the user
+            System.out.println("Enter your name: ");
+            System.out.flush();
+            String userName = clientIn.nextLine();
+            System.out.println("Hi " + userName + "!\n");
+
+
+            //get Joke loop, this takes new Joke requests until quit is typed
+            String clientStr = "";
+            do{
+                System.out.println("Hit ENTER to get a new response or type quit to exit...");
+                clientStr = clientIn.nextLine();
+                if(clientStr.indexOf("s") >= 0){
+                    if(CSM.toggleServer() == 0){
+                        //if it failed to switch
+                        System.out.println("No Secondary Server was provided at client startup, unable to switch");
+                    }
+                    //print the server info regardless
+                    System.out.println("Now communicating with: " + CSM.getServer().toString() + ",  Port " + CSM.getPort());
+                } else if(clientStr.indexOf("quit") < 0){
+                    queryServer(userName, CSM);
+                }
+            }while (clientStr.indexOf("quit") < 0);
+            System.out.println("Cancelled by user request.");
+            clientIn.close(); //Added this as it was not closed in the original JokeClient code
+        }catch(UnknownHostException UH){
+            //Thrown when IP address of the host could not be determined, possibly isnt online
+            System.out.println("\nUnknown Host problem.\n"); 
+            UH.printStackTrace();
+        }
 
     }
 
@@ -264,11 +282,11 @@ class JokeClient {
             if(inObject.message.isLast){
                 respStr.delete(0, respStr.length());
                 if(inObject.message.isJoke){
-                    respStr.append("JOKE ");
+                    respStr.append("\nJOKE ");
                 }else{
-                    respStr.append("PROVERB ");
+                    respStr.append("\nPROVERB ");
                 }
-                respStr.append("CYCLE COMPLETED");
+                respStr.append("CYCLE COMPLETED\n");
                 System.out.println(respStr.toString());   
             }
             socket.close();
@@ -298,22 +316,22 @@ class JokeClient {
  *  Provides functionality to toggle servers
  */
 class ClientServerManager {
-    private String prim_host = "localhost";
+    private InetAddress prim_host;
     private int prim_port = 4545;
-    private String sec_host = "localhost"; //will be overwritten when IP is provided
+    private InetAddress sec_host; //will be overwritten when IP is provided
     private int sec_port = 4546;
     private boolean allowSecondary = false; //do not allow secondary until one is provided
     private boolean useSecondary = false;
 
-    public void setPrimaryServer(String hostname){
+    public void setPrimaryServer(InetAddress hostname){
         prim_host = hostname;
     }
 
-    public void setSecondaryServer(String hostname){
+    public void setSecondaryServer(InetAddress hostname){
         sec_host = hostname;
         allowSecondary = true;
     }
-    public String getServer(){
+    public InetAddress getServer(){
         if(useSecondary && allowSecondary){
             return sec_host;
         }else{
@@ -321,6 +339,29 @@ class ClientServerManager {
         }
     }
 
+    public String getPrimaryServerString(){
+        return prim_host.toString();
+    }
+
+    public String getPrimaryPortString(){
+        return Integer.toString(prim_port);
+    }
+
+    public String getSecondaryServerString(){
+        if(allowSecondary)
+            return sec_host.toString();
+        else{
+            return "None";
+        }
+    }
+
+    public String getSecondaryPortString(){
+        if(allowSecondary)
+            return Integer.toString(sec_port);
+        else{
+            return "None";
+        }
+    }
     public void setPrimaryPort(int portNum){
         prim_port = portNum;
     }
@@ -347,6 +388,10 @@ class ClientServerManager {
         
     }
 
+    public boolean hasSecondary(){
+        return allowSecondary;
+    }
+
 
 }
 
@@ -354,55 +399,74 @@ class ClientServerManager {
  *  Joke Admin Client, called from command line with >java JokeClientAdmin
  */
 class JokeClientAdmin {
+    ClientServerManager CSM = new ClientServerManager();
     public static void main(String argv[]) {
         JokeClientAdmin cc = new JokeClientAdmin(argv);
+        
         cc.run(argv);
     }
     public JokeClientAdmin(String argv[]) {
-        System.out.println("\nThis is the Constructor\n");
+        
     }
 
     public void run(String argv[]) {
-        ClientServerManager CSM = new ClientServerManager();
-        CSM.setPrimaryPort(5050);
-        CSM.setSecondaryPort(5051);
-        //get the server name or address we were passed
-        if(argv.length == 1) {
-            //only different primary was provided so update that
-            CSM.setPrimaryServer(argv[0]);
-        }else if (argv.length == 2){
-            CSM.setPrimaryServer(argv[0]);
-            CSM.setPrimaryServer(argv[1]);
-        }else{
-            //use defaults          
-        }
-
-        //Scanner Object to allow input from client console
-        Scanner clientIn = new Scanner(System.in);
-
-        //Get the name of the user
-        System.out.println("Admin Client Started...\n    If a second server was provided you can type s to switch between them\n");
-
-        //get Joke loop, this takes new Joke requests until quit is typed
-        String clientStr = "";
-        do{
-            System.out.println("Hit ENTER to change server mode");
-            clientStr = clientIn.nextLine();
-            if(clientStr.indexOf("s") >= 0){
-                if(CSM.toggleServer() == 0){
-                    //if it failed to switch
-                    System.out.println("No Secondary Server was provided at client startup, unable to switch");
-                }
-                //print the server info regardless
-                System.out.println("Server: " + CSM.getServer() + "  Port: " + CSM.getPort());
-            } else if(clientStr.indexOf("quit") < 0){
-                queryServer(CSM);
+        try{
+            //get the server name or address we were passed
+            if(argv.length == 0){
+                //use default localhost w/o secondary
+                CSM.setPrimaryServer(InetAddress.getLocalHost());
+            }else if(argv.length == 1){
+                //change the primary, still no secondary
+                CSM.setPrimaryServer(InetAddress.getByName(argv[0]));
+            }else if(argv.length == 2){
+                //change the primary, set the secondary
+                CSM.setPrimaryServer(InetAddress.getByName(argv[0]));
+                CSM.setSecondaryServer(InetAddress.getByName(argv[1]));
+            }else{
+                //wrong number of args were entered
+                System.out.println("Wrong number of arguments entered please enter in the form of >Java JokeClientAdmin <IPaddr> <IPaddr> ");
             }
-        }while (clientStr.indexOf("quit") < 0);
-        System.out.println("Cancelled by user request.");
-        clientIn.close(); //Added this as it was not closed in the original JokeClient code
-        
+            //set the ports to the admin ports
+            CSM.setPrimaryPort(5050);
+            CSM.setSecondaryPort(5051);
 
+            
+
+            //Scanner Object to allow input from client console
+            Scanner clientIn = new Scanner(System.in);
+
+            //Get the name of the user
+            System.out.println("Admin Client Started...\n");
+            StringBuilder connInfo = new StringBuilder();
+            connInfo.append("Server one: " + CSM.getPrimaryServerString() + ", port: " + CSM.getPrimaryPortString());
+            if(CSM.hasSecondary()){
+                connInfo.append(" Server two: " + CSM.getSecondaryServerString() + ", port: " + CSM.getSecondaryPortString());
+            }
+            System.out.println(connInfo.toString());
+
+            //get Joke loop, this takes new Joke requests until quit is typed
+            String clientStr = "";
+            do{
+                System.out.println("Hit ENTER to change server mode");
+                clientStr = clientIn.nextLine();
+                if(clientStr.indexOf("s") >= 0){
+                    if(CSM.toggleServer() == 0){
+                        //if it failed to switch
+                        System.out.println("No Secondary Server was provided at client startup, unable to switch");
+                    }
+                    //print the server info regardless
+                    System.out.println("Now communicating with: " + CSM.getServer().toString() + ",  Port " + CSM.getPort());
+                } else if(clientStr.indexOf("quit") < 0){
+                    queryServer(CSM);
+                }
+            }while (clientStr.indexOf("quit") < 0);
+            System.out.println("Cancelled by user request.");
+            clientIn.close(); //Added this as it was not closed in the original JokeClient code
+        }catch(UnknownHostException UH){
+            //Thrown when IP address of the host could not be determined, possibly isnt online
+            System.out.println("\nUnknown Host problem.\n"); 
+            UH.printStackTrace();
+        }
     }
 
     void queryServer(ClientServerManager CSM){
@@ -415,7 +479,7 @@ class JokeClientAdmin {
 
             OutputStream outStream = sock.getOutputStream();
             ObjectOutputStream objectOutStream = new ObjectOutputStream(outStream);
-            adminDataObj.adminHost = CSM.getServer();
+            adminDataObj.adminHost = CSM.getServer().toString();
             adminDataObj.adminPort = CSM.getPort();
             objectOutStream.writeObject(adminDataObj);
 
@@ -595,6 +659,7 @@ public class JokeServer {
 
     public static void main(String[] args) throws Exception {
         int q_len = 6; /*Maximum number of requests to queue in the backlog, additional requests will be refused if full */
+        InetAddress servAddress = InetAddress.getLocalHost();
         int serverPort = 4545;
         boolean isPrimary = true;
 
@@ -610,7 +675,6 @@ public class JokeServer {
         AdminListener admin = new AdminListener(InetAddress.getLocalHost(), isPrimary);
         Thread adminThread = new Thread(admin);
         adminThread.start();
-        
         //start our jokemanager and load in jokes/ proverbs
         JokeManager JokeProverbManager = new JokeManager();
         JokeProverbManager.addJokeProverb(true, "JA", "Why dont scientists trust atoms? Because they make up everything.");
@@ -623,8 +687,8 @@ public class JokeServer {
         JokeProverbManager.addJokeProverb(false, "PD", "The reputation of a thousand years may be determined by the conduct of one hour.");
 
         //Create our server socket using our port and allowed queue length
-        ServerSocket serverSock = new ServerSocket(serverPort, q_len, InetAddress.getLocalHost());
-        System.out.println("Server open on port " + serverPort + " and awaiting connections from clients...");
+        ServerSocket serverSock = new ServerSocket(serverPort, q_len, servAddress);
+        System.out.println("Server " + servAddress + " open on port " + serverPort + " and awaiting connections from clients...");
         while(true){
             //Listen until a request comes in, accept it and spin up a worker thread to handle it
             sock = serverSock.accept(); //accept creates a new Socket and returns it
